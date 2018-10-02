@@ -54,6 +54,7 @@ Outputs the resulting protein sequences and the possible locations in a FASTA fi
 Please test your code on the supplied FASTA file “pa1.fasta” and supply the out put file along with your python code. Note: it should run on any FASTA file :) 
 '''
 
+
 # relative 
 FASTA_PATH = "pa1.fasta" 
 
@@ -64,18 +65,18 @@ class gene:
         self.seq = seq
         self.desc = desc 
     
-    def translate(): 
-        cod_gen = __codon_gen(self.seq)
+    def translate(self): 
+        cod_gen = self.__codon_gen(self.seq)
         self.aa_rd0 = [] 
         self.aa_rd1 = [] 
         self.aa_rd2 = [] 
         
-        for codons in gen: 
-            aa_rd0.append(__codon2aa(codons[0]))
-            aa_rd1.append(__codon2aa(codons[1]))
-            aa_rd2.append(__codon2aa(codons[2]))
+        for codons in cod_gen: 
+            self.aa_rd0.append(self.__codon2aa(codons[0]))
+            self.aa_rd1.append(self.__codon2aa(codons[1]))
+            self.aa_rd2.append(self.__codon2aa(codons[2]))
             
-    def __find_double_basics(aas):
+    def __find_double_basics(self,aas):
         clev_loc = []
         double_basic = {"KK", "KR", "RK", "RR"}
         last = aas[0]
@@ -87,23 +88,23 @@ class gene:
                 
         return clev_loc 
     
-    def get_cleavage_locations(): 
-        self.clv_loca_rd0 = __find_double_basics(self.aa_rd0)
-        self.clv_loca_rd1 = __find_double_basics(self.aa_rd1)
-        self.clv_loca_rd2 = __find_double_basics(self.aa_rd2)
+    def find_cleavage_locations(self): 
+        self.clv_loca_rd0 = self.__find_double_basics(self.aa_rd0)
+        self.clv_loca_rd1 = self.__find_double_basics(self.aa_rd1)
+        self.clv_loca_rd2 = self.__find_double_basics(self.aa_rd2)
         
-    def get_fasta_string(): 
-        faa_st0 = '>' + self.geneName + '|reading frame 0|'
-                        + self.desc + '|' 
-                        + ''.join(self.aa_rd0) + '|' 
-                        + ''.join(self.clev_loca_rd0)
+    def get_fasta_string(self): 
+        faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ''.join(self.aa_rd0) + '|' + ''.join(self.clv_loca_rd0)
+        
+        faa_st1 = '>' + self.geneName + '|reading frame 1|' + self.desc + '|' + ''.join(self.aa_rd1) + '|' + ''.join(self.clv_loca_rd1)
                         
-            
+        faa_st2 = '>' + self.geneName + '|reading frame 2|'+ self.desc + '|' + ''.join(self.aa_rd2) + '|' + ''.join(self.clv_loca_rd2)
+                        
+        return faa_st0 + '\n' + faa_st1 + '\n' + faa_st2 
+                        
+    def __codon2aa(self,codon): 
         
-            
-
-    def __codon2aa(codon): 
-        
+        assert len(codon) == 3, 'improper codon length'
         # taken from https://stackoverflow.com/questions/19521905/translation-dna-to-protein
         codontable = {
         'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
@@ -127,15 +128,52 @@ class gene:
         
             
 
-    def __codon_gen(seq): 
+    def __codon_gen(self,seq): 
+        print(seq)
         i = 0
-        while (i < len(seq)-2)
-            rd0 = seq[i:3]
-            rd1 = seq[i+1:4]
-            rd2 = seq[i+2:5]
+        while (i < len(seq)-2): 
+            rd0 = seq[i:i+3]
+            rd1 = seq[i+1:i+4]
+            rd2 = seq[i+2:i+5]
+            i += 3
             yield (rd0, rd1, rd2)
    
-if __name__ == __main__: 
+if (__name__ == '__main__'): 
+    
+    gene_store = [] 
+    with open(FASTA_PATH, 'r') as f: 
+        fasta_data = f.read() 
+        genes = fasta_data.split('>')
+        failed_gene_parse = 0 
+        
+        for _gene in genes: 
+            if (len(_gene) > 0) : 
+                
+                try: 
+                    pcs = _gene.splitlines()
+                    #print(pcs)
+                    seq = ''.join(pcs[1:]) #this is super messy -ick 
+                    pcs2 = pcs[0].split('|')
+                    geneName = pcs2[0]
+                    desc = pcs2[-1]
+                    #print((geneName, desc, seq))
+                    gene_store.append(gene(name=geneName, seq=seq, desc=desc))
+                    
+                except: 
+                    failed_gene_parse += 1
+         
+    with open('evans_output.fasta', 'w') as f: 
+        for i,g in enumerate(gene_store): 
+            # print("analyzing gene %d of %d", % (i, len(gene_store))) # not sure why this wont work
+            print('gene # ', i)
+            print('translating...')
+            g.translate()
+            print('analyzing for clevage locations...')
+            g.find_cleavage_locations()
+            print('writing output to fasta file...')
+            f.write(g.get_fasta_string()) 
+
+
     
     print('finished')
 
