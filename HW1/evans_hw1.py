@@ -72,9 +72,12 @@ class gene:
         self.aa_rd2 = [] 
         
         for codons in cod_gen: 
-            self.aa_rd0.append(self.__codon2aa(codons[0]))
-            self.aa_rd1.append(self.__codon2aa(codons[1]))
-            self.aa_rd2.append(self.__codon2aa(codons[2]))
+            if (len(codons[0]) == 3): 
+                self.aa_rd0.append(self.__codon2aa(codons[0]))
+            if (len(codons[1]) == 3): 
+                self.aa_rd1.append(self.__codon2aa(codons[1]))
+            if (len(codons[2]) == 3): 
+                self.aa_rd2.append(self.__codon2aa(codons[2]))
             
     def __find_double_basics(self,aas):
         clev_loc = []
@@ -94,11 +97,12 @@ class gene:
         self.clv_loca_rd2 = self.__find_double_basics(self.aa_rd2)
         
     def get_fasta_string(self): 
-        faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ''.join(self.aa_rd0) + '|' + ''.join(self.clv_loca_rd0)
+        #print(self.clv_loca_rd1)
+        faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ''.join(self.aa_rd0) + '|' + ','.join(str(x) for x in self.clv_loca_rd0)
         
-        faa_st1 = '>' + self.geneName + '|reading frame 1|' + self.desc + '|' + ''.join(self.aa_rd1) + '|' + ''.join(self.clv_loca_rd1)
+        faa_st1 = '>' + self.geneName + '|reading frame 1|' + self.desc + '|' + ''.join(self.aa_rd1) + '|' + ','.join(str(x) for x in self.clv_loca_rd1)
                         
-        faa_st2 = '>' + self.geneName + '|reading frame 2|'+ self.desc + '|' + ''.join(self.aa_rd2) + '|' + ''.join(self.clv_loca_rd2)
+        faa_st2 = '>' + self.geneName + '|reading frame 2|'+ self.desc + '|' + ''.join(self.aa_rd2) + '|' + ','.join(str(x) for x in self.clv_loca_rd2)
                         
         return faa_st0 + '\n' + faa_st1 + '\n' + faa_st2 
                         
@@ -129,13 +133,14 @@ class gene:
             
 
     def __codon_gen(self,seq): 
-        print(seq)
         i = 0
         while (i < len(seq)-2): 
             rd0 = seq[i:i+3]
             rd1 = seq[i+1:i+4]
             rd2 = seq[i+2:i+5]
             i += 3
+            #print( (i, len(seq)) )
+            #print( (rd0, rd1, rd2) )
             yield (rd0, rd1, rd2)
    
 if (__name__ == '__main__'): 
@@ -157,6 +162,7 @@ if (__name__ == '__main__'):
                     geneName = pcs2[0]
                     desc = pcs2[-1]
                     #print((geneName, desc, seq))
+                    assert len(seq) > 0 , 'nucleotide sequence must be nonzero string'
                     gene_store.append(gene(name=geneName, seq=seq, desc=desc))
                     
                 except: 
@@ -164,6 +170,8 @@ if (__name__ == '__main__'):
          
     with open('evans_output.fasta', 'w') as f: 
         for i,g in enumerate(gene_store): 
+            if ( i == 61): 
+                print(g.seq)
             # print("analyzing gene %d of %d", % (i, len(gene_store))) # not sure why this wont work
             print('gene # ', i)
             print('translating...')
@@ -175,5 +183,5 @@ if (__name__ == '__main__'):
 
 
     
-    print('finished')
+    print('finished. Number of genes that failed to parse: ', failed_gene_parse)
 
