@@ -15,27 +15,30 @@ Carry out the translation to a protein sequence in all possible frames
 Finds  putative cleavage sites which are “double basic" (e.g., KK, KR, RK, RR) in the protein sequence 
 
 Outputs the resulting protein sequences and the possible locations in a FASTA file that carries the description field from the nucleotide entry. The locations of the cleavage sites should be described in the description field 
+
 '''
 
 # open file (fasta)
-# read file and split into dictionary where key (gene) -> list(values)
+# read file and save into individual gene info in to data structure
 # for each nucleotide sequence: 
 
-    # def generator function that takes gene seq and returns the next codon in the list
-    # init 3 generator functions starting at each reading frame 
-    # create empty dictionary of lists
-    # while the generators aren't empty, loop through and convert each codon into its amino acid - How should we deal with stop codons? 
+    # transcribe the DNA seq: flip the kbs of seq 
+    # 
+    # create 3 reading frames (i0, i0+1, i0+2) such that i0 = kb[0]
+    # increment through seq, selecting appropriate codons for each reading frame 
+        # at each codon, convert to amino acid and store in appropriate data structure maintaining aa order 
     
-    #for each reading frame list of amino acids, loop through and compare previous amino acid with current aa searching for matches within {KK, KR, RK, RR}, 
-    # when a double basic is found, record it in a list, including index info (from beginning of aa seq) and reading frame. 
+    # for each sequence of amino acids
+        # loop through and compare previous aa with current aa searching for matches within {KK, KR, RK, RR}, 
+        # when a double basic is found, record it, including index info (from beginning of aa seq) 
     # open new fasta file for output
-    # convert aa lists to strings
+    # convert aa lists to appropriate text format
     # print aa strings, with labeled reading frames to fasta file 
     # print double basic clevage site locations to description field
 
 # FASTA format goal (something like) : 
 ''' 
-> gene_pa1_rdfm01 (name) | description (from ns) | double basic cleavage sites | amino acid string
+> gene_pa1_rdfm01 (name) | description (from ns) | double basic cleavage sites | amino acid string rd 0 | "rd 1 | "rd 2
 > ... 
 
 ''' 
@@ -67,8 +70,15 @@ class gene:
         self.seq = seq
         self.desc = desc 
     
+    def transcribe(self): 
+    
+        self.mRNA = ''
+        rna_comp = {'A':'U', 'T':'A', 'C':'G', 'G':'C'}
+        for kb in self.seq: 
+            self.mRNA += rna_comp[kb]
+    
     def translate(self): 
-        cod_gen = self.__codon_gen(self.seq)
+        cod_gen = self.__codon_gen(self.mRNA)
         self.aa_rd0 = [] 
         self.aa_rd1 = [] 
         self.aa_rd2 = [] 
@@ -99,37 +109,38 @@ class gene:
         self.clv_loca_rd2 = self.__find_double_basics(self.aa_rd2)
         
     def get_fasta_string(self): 
-        #print(self.clv_loca_rd1)
-        faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ''.join(self.aa_rd0) + '|' + ','.join(str(x) for x in self.clv_loca_rd0)
+        #print(self.clv_loca_rd1)               
         
-        faa_st1 = '>' + self.geneName + '|reading frame 1|' + self.desc + '|' + ''.join(self.aa_rd1) + '|' + ','.join(str(x) for x in self.clv_loca_rd1)
+        faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ','.join(str(x) for x in self.clv_loca_rd0) + '\n' + ''.join(str(x)+'\n' if (i%80==0 and i>0) else x for (i,x) in enumerate(self.aa_rd0))
+        
+        faa_st1 = '>' + self.geneName + '|reading frame 1|' + self.desc + '|' + ','.join(str(x) for x in self.clv_loca_rd1) + '\n' + ''.join(str(x)+'\n' if (i%80==0 and i>0) else x for (i,x) in enumerate(self.aa_rd1))
                         
-        faa_st2 = '>' + self.geneName + '|reading frame 2|'+ self.desc + '|' + ''.join(self.aa_rd2) + '|' + ','.join(str(x) for x in self.clv_loca_rd2)
+        faa_st2 = '>' + self.geneName + '|reading frame 2|' + self.desc + '|' + ','.join(str(x) for x in self.clv_loca_rd2) + '\n' + ''.join(str(x)+'\n' if (i%80==0 and i>0) else x for (i,x) in enumerate(self.aa_rd2))
                         
-        return faa_st0 + '\n' + faa_st1 + '\n' + faa_st2 
+        return faa_st0 + '\n' + faa_st1 + '\n' + faa_st2 + '\n'
                         
     def __codon2aa(self,codon): 
         
         assert len(codon) == 3, 'improper codon length'
         # taken from https://stackoverflow.com/questions/19521905/translation-dna-to-protein
-        # why is ATG -> mRNA (AUG) -> Start codon? 
+        # but converted T -> U for mRNA
         codontable = {
-        'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
-        'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
-        'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
-        'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
-        'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
-        'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
-        'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
-        'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
-        'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
-        'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
-        'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
-        'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
-        'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
-        'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
-        'TAC':'Y', 'TAT':'Y', 'TAA':'_', 'TAG':'_',
-        'TGC':'C', 'TGT':'C', 'TGA':'_', 'TGG':'W',}
+        'AUA':'I', 'AUC':'I', 'AUU':'I', 'AUG':'M',
+        'ACA':'U', 'ACC':'T', 'ACG':'T', 'ACU':'T',
+        'AAC':'N', 'AAU':'N', 'AAA':'K', 'AAG':'K',
+        'AGC':'S', 'AGU':'S', 'AGA':'R', 'AGG':'R',
+        'CUA':'L', 'CUC':'L', 'CUG':'L', 'CUU':'L',
+        'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCU':'P',
+        'CAC':'H', 'CAU':'H', 'CAA':'Q', 'CAG':'Q',
+        'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGU':'R',
+        'GUA':'V', 'GUC':'V', 'GUG':'V', 'GUU':'V',
+        'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCU':'A',
+        'GAC':'D', 'GAU':'D', 'GAA':'E', 'GAG':'E',
+        'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGU':'G',
+        'UCA':'S', 'UCC':'S', 'UCG':'S', 'UCU':'S',
+        'UUC':'F', 'UUU':'F', 'UUA':'L', 'UUG':'L',
+        'UAC':'Y', 'UAU':'Y', 'UAA':'_', 'UAG':'_',
+        'UGC':'C', 'UGU':'C', 'UGA':'_', 'UGG':'W',}
         
         return codontable[codon]
         
@@ -163,11 +174,11 @@ if (__name__ == '__main__'):
                     seq = ''.join(pcs[1:]) #this is super messy -ick 
                     pcs2 = pcs[0].split('|')
                     geneName = pcs2[0]
-                    desc = pcs2[-1]
+                    desc = '|'.join(pcs2[1:])
+                    #print(desc)
                     #print((geneName, desc, seq))
                     assert len(seq) > 0 , 'nucleotide sequence must be nonzero string'
                     gene_store.append(gene(name=geneName, seq=seq, desc=desc))
-                    
                 except: 
                     failed_gene_parse += 1
          
@@ -177,6 +188,8 @@ if (__name__ == '__main__'):
                 print(g.seq)
             # print("analyzing gene %d of %d", % (i, len(gene_store))) # not sure why this wont work
             print('gene # ', i)
+            print('transcribing...')     
+            g.transcribe()    
             print('translating...')
             g.translate()
             print('analyzing for clevage locations...')

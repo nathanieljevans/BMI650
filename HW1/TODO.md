@@ -10,3 +10,5 @@
 
 
 4. (desired) Try out auto-testing w/ doc string sample output 
+
+5. cleavage sites need to be in description segment
