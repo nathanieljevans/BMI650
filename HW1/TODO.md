@@ -8,6 +8,7 @@
 -Donezo
 
 3. Add doc string code commenting 
+-Donezo
 
 4. (desired) Try out auto-testing w/ doc string sample output 
 

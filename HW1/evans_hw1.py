@@ -60,24 +60,58 @@ Please test your code on the supplied FASTA file “pa1.fasta” and supply the 
 
 
 
-# relative 
+# relative path to fasta file for testing 
 FASTA_PATH = "pa1.fasta" 
 
 class gene: 
+    '''
+   This class represents a gene sequence and has methods representing trascription and translation. 
+
+    Note:
+        During translation, stop and start codons are not taken into account, rather, the translated protein is contiguous from beginning of mRNA to end. 
+
+    Attributes:
+        geneName (str): name of gene
+        desc (str): description line of fasta file, exempt of gene name
+        seq (str): nucleotide sequence represented by string of A,T,C,G
+
+    '''
     
     def __init__(self, name, seq, desc):
+        '''
+            init method of gene class
+        Args:
+            name (str) : seq of name
+            seq (str) : sequence of kbs
+            desc (str) : gene description 
+        Returns:
+           None
+        '''
         self.geneName = name
         self.seq = seq
         self.desc = desc 
     
     def transcribe(self): 
-    
+        '''
+            Creates new attribute (mRNA) with the complementary bases of nucleotide seq with T -> U
+        Args:
+            None
+        Returns:
+           None
+        '''
         self.mRNA = ''
         rna_comp = {'A':'U', 'T':'A', 'C':'G', 'G':'C'}
         for kb in self.seq: 
             self.mRNA += rna_comp[kb]
     
     def translate(self): 
+        '''
+            creates 3 new attributes representing aa sequence coded for by mRNA at each possible reading frame
+        Args:
+            None
+        Returns:
+           None
+        '''
         cod_gen = self.__codon_gen(self.mRNA)
         self.aa_rd0 = [] 
         self.aa_rd1 = [] 
@@ -92,6 +126,13 @@ class gene:
                 self.aa_rd2.append(self.__codon2aa(codons[2]))
             
     def __find_double_basics(self,aas):
+        '''
+            finds the location of specific sub strings within the aa sequence representing double base cleavage points and creates a list of loci. 
+        Args:
+            aas (str) 
+        Returns:
+           clev_loc (list) : list representing all double base cleavage indices 
+        '''
         clev_loc = []
         double_basic = {"KK", "KR", "RK", "RR"}
         last = aas[0]
@@ -104,12 +145,25 @@ class gene:
         return clev_loc 
     
     def find_cleavage_locations(self): 
+        '''
+            sets new attributes representing each reading frames double base cleavage locations by index from start of amino acid sequence 
+        Args:
+            None
+        Returns:
+           None
+        '''
         self.clv_loca_rd0 = self.__find_double_basics(self.aa_rd0)
         self.clv_loca_rd1 = self.__find_double_basics(self.aa_rd1)
         self.clv_loca_rd2 = self.__find_double_basics(self.aa_rd2)
         
     def get_fasta_string(self): 
-        #print(self.clv_loca_rd1)               
+        '''
+            generates an appropriate fasta formated text representing one gene
+        Args:
+            None
+        Returns:
+           (str) fasta gene 
+        '''              
         
         faa_st0 = '>' + self.geneName + '|reading frame 0|' + self.desc + '|' + ','.join(str(x) for x in self.clv_loca_rd0) + '\n' + ''.join(str(x)+'\n' if (i%80==0 and i>0) else x for (i,x) in enumerate(self.aa_rd0))
         
@@ -120,7 +174,13 @@ class gene:
         return faa_st0 + '\n' + faa_st1 + '\n' + faa_st2 + '\n'
                         
     def __codon2aa(self,codon): 
-        
+        '''
+            converts given codon (mRNA) to amino acid
+        Args:
+            codon (str) : three characters representing a codon
+         Returns:
+           (str) : single character representing amino acid
+        '''
         assert len(codon) == 3, 'improper codon length'
         # taken from https://stackoverflow.com/questions/19521905/translation-dna-to-protein
         # but converted T -> U for mRNA
@@ -144,17 +204,20 @@ class gene:
         
         return codontable[codon]
         
-            
-
-    def __codon_gen(self,seq): 
+    def __codon_gen(self,seq):
+        '''
+            This is a generator function that returns the next codon in a given mRNA seq at each possible reading frame
+        Args:
+            seq (str) : mRNA sequence
+        Returns:
+           (tuple<str>) : 3-len tuple where each value is a three character string representing the next codon
+        '''
         i = 0
         while (i < len(seq)-2): 
             rd0 = seq[i:i+3]
             rd1 = seq[i+1:i+4]
             rd2 = seq[i+2:i+5]
             i += 3
-            #print( (i, len(seq)) )
-            #print( (rd0, rd1, rd2) )
             yield (rd0, rd1, rd2)
    
 if (__name__ == '__main__'): 
@@ -170,13 +233,10 @@ if (__name__ == '__main__'):
                 
                 try: 
                     pcs = _gene.splitlines()
-                    #print(pcs)
                     seq = ''.join(pcs[1:]) #this is super messy -ick 
                     pcs2 = pcs[0].split('|')
                     geneName = pcs2[0]
                     desc = '|'.join(pcs2[1:])
-                    #print(desc)
-                    #print((geneName, desc, seq))
                     assert len(seq) > 0 , 'nucleotide sequence must be nonzero string'
                     gene_store.append(gene(name=geneName, seq=seq, desc=desc))
                 except: 
@@ -184,8 +244,6 @@ if (__name__ == '__main__'):
          
     with open('evans_output.fasta', 'w') as f: 
         for i,g in enumerate(gene_store): 
-            if ( i == 61): 
-                print(g.seq)
             # print("analyzing gene %d of %d", % (i, len(gene_store))) # not sure why this wont work
             print('gene # ', i)
             print('transcribing...')     
@@ -197,7 +255,5 @@ if (__name__ == '__main__'):
             print('writing output to fasta file...')
             f.write(g.get_fasta_string()) 
 
-
-    
     print('finished. Number of genes that failed to parse: ', failed_gene_parse)
 
