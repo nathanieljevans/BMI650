@@ -16,6 +16,7 @@ Finds  putative cleavage sites which are “double basic" (e.g., KK, KR, RK, RR)
 
 Outputs the resulting protein sequences and the possible locations in a FASTA file that carries the description field from the nucleotide entry. The locations of the cleavage sites should be described in the description field 
 '''
+
 # open file (fasta)
 # read file and split into dictionary where key (gene) -> list(values)
 # for each nucleotide sequence: 
@@ -53,6 +54,7 @@ Outputs the resulting protein sequences and the possible locations in a FASTA fi
 
 Please test your code on the supplied FASTA file “pa1.fasta” and supply the out put file along with your python code. Note: it should run on any FASTA file :) 
 '''
+
 
 
 # relative 
@@ -110,6 +112,7 @@ class gene:
         
         assert len(codon) == 3, 'improper codon length'
         # taken from https://stackoverflow.com/questions/19521905/translation-dna-to-protein
+        # why is ATG -> mRNA (AUG) -> Start codon? 
         codontable = {
         'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
         'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
