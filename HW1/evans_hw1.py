@@ -3,33 +3,26 @@
 Created on Tue Oct  2 09:10:45 2018
 
 @author: nathaniel evans 
-@class: ALGORITHMS 
+@class: BMI650 ALGORITHMS 
 @HW: 1 
 """
 
 '''
-3. Create the pseudocode (70 pts) that does the following:
-
-Reads in a FASTA file of nucleotide (DNA) sequences 
-Carry out the translation to a protein sequence in all possible frames 
-Finds  putative cleavage sites which are “double basic" (e.g., KK, KR, RK, RR) in the protein sequence 
-
-Outputs the resulting protein sequences and the possible locations in a FASTA file that carries the description field from the nucleotide entry. The locations of the cleavage sites should be described in the description field 
-
+PSEUDOCODE 
 '''
 
-# open file (fasta)
-# read file and save into individual gene info in to data structure
+# open file (fasta) or pipe in fasta file from bash command line 
+# read file and save into individual gene info to data structure
 # for each nucleotide sequence: 
 
     # transcribe the DNA seq: flip the kbs of seq 
-    # 
-    # create 3 reading frames (i0, i0+1, i0+2) such that i0 = kb[0]
-    # increment through seq, selecting appropriate codons for each reading frame 
-        # at each codon, convert to amino acid and store in appropriate data structure maintaining aa order 
+    # create 3 reading frames with initial base at, i0, i0+1, i0+2, such that i0 = kb[0]
+    # for each reading frame
+        # increment through seq, selecting appropriate codons for each reading frame 
+            # at each codon, convert to amino acid and store in appropriate data structure maintaining aa order 
     
-    # for each sequence of amino acids
-        # loop through and compare previous aa with current aa searching for matches within {KK, KR, RK, RR}, 
+    # for each sequence of amino acids (aa)
+        # loop through aa sequence and compare previous aa with current aa searching for matches within {KK, KR, RK, RR}, 
         # when a double basic is found, record it, including index info (from beginning of aa seq) 
     # open new fasta file for output
     # convert aa lists to appropriate text format
@@ -38,34 +31,41 @@ Outputs the resulting protein sequences and the possible locations in a FASTA fi
 
 # FASTA format goal (something like) : 
 ''' 
-> gene_pa1_rdfm01 (name) | description (from ns) | double basic cleavage sites | amino acid string rd 0 | "rd 1 | "rd 2
+> gene_pa1 (name) | reading frame 0X | description (from ns) | double basic cleavage sites | amino acid string rd 0 
 > ... 
 
 ''' 
 
-
-
-
 '''
-4. Create a python script that then implements each of the above tasks (point breakdown below -Note: you can still pass this assignment if your programming is rough given point breakdown -emphasis is  on ordered, concrete tasks !!):
+PYTHON CODE 
 
-Reads in a FASTA file of nucleotide (DNA) sequences (5 pts)
-Carry out the translation to a protein sequence in all possible frames (10 pts) 
-Finds  putative cleavage sites which are “double basic" (e.g., KK, KR, RK, RR) in the protein sequence (5 pts)
-
-Outputs the resulting protein sequences and the possible locations in a FASTA file that carries the description field from the nucleotide entry. The locations of the cleavage sites should be described in the description field (5 pts) 
-
-Please test your code on the supplied FASTA file “pa1.fasta” and supply the out put file along with your python code. Note: it should run on any FASTA file :) 
+To run this file, pipe a fasta file into this script from the command line using the format (bash): 
+        $cat your-file.fasta | python evans_hw1.py 
+    
+    output will be saved in the same directory as this script, named: "evans_output.fasta" 
+    
+    Additional notes: 
+        Docstring does include doctesting which can be run by specifying additional argument from command line (bash): 
+            $python evans_hw.py --doctest
 '''
 
-
-
-# relative path to fasta file for testing 
-FASTA_PATH = "pa1.fasta" 
+import sys
 
 class gene: 
     '''
-   This class represents a gene sequence and has methods representing trascription and translation. 
+   This class represents a gene sequence and has methods to emulate concepts of trascription, translation and observation of double basic cleavage location. 
+   
+    >>> gene("my_gene_name", "ATCGCTGCATGCATCGA", "my description | here | and here|").seq
+    'ATCGCTGCATGCATCGA'
+    >>> g = gene("my_gene_name", "ATCGCTGCATGCATCGA", "my description | here | and here|")
+    >>> g.transcribe()
+    >>> g.mRNA
+    'UAGCGACGUACGUAGCU'
+    >>> g = gene("my_gene_name", "ATCGCTGCATGCATCGA", "my description | here | and here|")
+    >>> g.transcribe()
+    >>> g.translate()
+    >>> [g.aa_rd0, g.aa_rd1, g.aa_rd2]
+    [['_', 'R', 'R', 'T', '_'], ['S', 'D', 'V', 'R', 'S'], ['A', 'T', 'Y', 'V', 'A']]
 
     Note:
         During translation, stop and start codons are not taken into account, rather, the translated protein is contiguous from beginning of mRNA to end. 
@@ -220,11 +220,22 @@ class gene:
             i += 3
             yield (rd0, rd1, rd2)
    
+# this handles file input, highlevel processing order and file output
 if (__name__ == '__main__'): 
+    # doctesting 
+    if (len(sys.argv) > 1): 
+        if (sys.argv[1] == "--doctest"): 
+            import doctest 
+            doctest.testmod()
+            print('doctest complete')
+        else: 
+            print("did you mean to use --doctest ?")
     
-    gene_store = [] 
-    with open(FASTA_PATH, 'r') as f: 
-        fasta_data = f.read() 
+    # running on a .fasta file with kb sequences 
+    else:
+        gene_store = [] 
+        fasta_data = sys.stdin.read() 
+        
         genes = fasta_data.split('>')
         failed_gene_parse = 0 
         
@@ -241,19 +252,19 @@ if (__name__ == '__main__'):
                     gene_store.append(gene(name=geneName, seq=seq, desc=desc))
                 except: 
                     failed_gene_parse += 1
-         
-    with open('evans_output.fasta', 'w') as f: 
-        for i,g in enumerate(gene_store): 
-            # print("analyzing gene %d of %d", % (i, len(gene_store))) # not sure why this wont work
-            print('gene # ', i)
-            print('transcribing...')     
-            g.transcribe()    
-            print('translating...')
-            g.translate()
-            print('analyzing for clevage locations...')
-            g.find_cleavage_locations()
-            print('writing output to fasta file...')
-            f.write(g.get_fasta_string()) 
-
-    print('finished. Number of genes that failed to parse: ', failed_gene_parse)
+             
+        with open('evans_output.fasta', 'w') as f: 
+            for i,g in enumerate(gene_store): 
+                print('gene # ', i)
+                print('transcribing...')     
+                g.transcribe()    
+                print('translating...')
+                g.translate()
+                print('analyzing for clevage locations...')
+                g.find_cleavage_locations()
+                print('writing output to fasta file...')
+                f.write(g.get_fasta_string()) 
+    
+        print('Gene analysis finished. Number of genes that failed to parse: ', failed_gene_parse)
+        print('Output file written to local directory as \"evans_output.fasta\"')
 
