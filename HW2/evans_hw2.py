@@ -103,7 +103,8 @@ if __name__ == "__main__" :
      
     print(np.array2string(board, max_line_width=np.inf))
     
-    # populate match/mismatch - diag transitions
+# TODO 
+    # add trace back and sequence alignment string representation
     
     
     
