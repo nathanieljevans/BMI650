@@ -5,8 +5,10 @@ Created on Thu Oct 11 19:29:30 2018
 @author: natha
 """
 import numpy as np
-SEQ1 = "GWWPDT"
-SEQ2 = "WRRKHY" 
+
+#seq 2 across top
+SEQ2 = "GWWPDT"
+SEQ1 = "WRRKHY" 
 SHAPE = (len(SEQ1), len(SEQ2))
 
 HP = {'G','W','T','K','H','Y'}
@@ -43,6 +45,7 @@ def get_score(i, j, seq1, seq2):
         raise
     
     if (s1 == s2): 
+        print([i,j, s1,s2])
         return 5 # match
     elif(s1 in HP and s2 in HP): 
         return 1 # both HP
@@ -51,24 +54,12 @@ def get_score(i, j, seq1, seq2):
     else: 
         return 0 # neither are HP
 
-'''
-def ordered_pop(i, j): 
-    global board
-    
-    for 
-    # fill yourself out then send on: 
-            # row first, then col, then next diag
-    from_above = board[i][j-2] + board[i][j-1] 
-    from_left = board[i-2][j] + board[i-1][j]
-    from_diag = board[i-2][j-2] + board[i-1][j-1]
-
-    board[i][j] = np.max([from_above, from_left, from_diag]) 
-'''
-
+# cartesian distance of a tuple - for sorting
 def dist(tup): 
     return ( (tup[0]**2 + tup[1]**2)**(0.5) ) 
 
 if __name__ == "__main__" :
+    print(SHAPE)
     board = make_mat(SHAPE)
     
     # populate indels match/mismatch - diag transitions
@@ -98,6 +89,7 @@ if __name__ == "__main__" :
     # remove 0,0 
     node_ordered.remove((0,0))
     
+    # populate nodes in proper order 
     for node in node_ordered: 
         i,j = node
         max_ls = []
