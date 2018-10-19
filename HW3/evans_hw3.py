@@ -6,30 +6,33 @@ Created on Wed Oct 17 19:58:59 2018
 @class: BMI650 ALGS
 @HW: 3 
 
-The following program can be run for the purpose of scoring any number and length(*see time/mem complexity discussion) of amino acid sequence alignments. The sequence to be scored must be in the directory, relative to this script, ./data/hw3.txt and contain only characters: [ARNDCQEGHILKMFPSTWYVBZX-]. Each sequence should have the same length. 
+The following program can be run for the purpose of scoring any number and length(*see time/mem complexity discussion) of amino acid sequence alignments. The sequence to be scored must be in the directory, relative to this script: 
+                ./data/hw3.txt 
+            and contain only characters: [ARNDCQEGHILKMFPSTWYVBZX-]. 
+            Each sequence should contain the same number of characters 
 
-Scoring can be calculated in two ways, and with the option of including or excluding gap scores, which produces four total output scores. 
+Scoring can be calculated in two ways, and with the option of including or excluding gap scores, which produces four total output scores. Please see End Results section for note on specifics of skipping gaps. 
 
-The entropy score is produced by using shannon's entropy (-sigma: pi*log2(pi) ) for each column and summing over the entire sequence length. This can be done including or excluding indel values BUT columns are not dropped when indels are present, rather, they are excluded in the entopy equation but a normalized column is still used. 
+The entropy score is produced by using shannon entropy (-sigma: pi*log2(pi) ) for each column in the alignment and summing over the entire sequence length. This can be done including or excluding indel values BUT columns are not dropped when indels are present, rather, they are excluded in the entopy equation but a normalized column is still used. 
     e.g. (excluding indels) given the column: [K - T], the entropy score would be calculated as: 
             2*(0.5 * log2(0.5))
-            This provides a more accurate score by including all information where sequences overlap. 
+        This provides a more accurate score by including all information where sequences overlap. 
             
-Likewise, sequence score can also be calculated using the sum of pairs method, and this requires an input substitution matrix. This file should be located in ./data/BLOSOM62.txt. For syntax on valid input files, please see example at: https://www.ncbi.nlm.nih.gov/Class/BLAST/BLOSUM62.txt. Naming conventions should be adapted if using non-default substitution matrix. This method can also be calculated including or excluding indels, however, like before this method does not drop the column but instead treats a indel-aminoacid pair as zero scoring, thereby maximizing the amount of information retained in the calculated score. 
+Sequence score can also be calculated using the sum of pairs method. This requires an input substitution matrix and should be located in ./data/BLOSOM62.txt. For syntax on valid input files, please see example at: https://www.ncbi.nlm.nih.gov/Class/BLAST/BLOSUM62.txt. Naming conventions should be adapted if using non-default substitution matrix. This method can also be calculated including or excluding indels, however, like before this method does not drop the column but instead treats a indel-aminoacid pair as zero scoring, thereby maximizing the amount of information retained in the calculated score. 
 
 These scores are written to console and an output file located: ./data/evans_output.txt
 
-Additionaly, the entropy matrix is printed to file, located in ./data/entropy_matrix.txt which can be a useful tool to visulize the sequence alignment as a frequency distribution. Columns represent amino acids (in the order: [ARNDCQEGHILKMFPSTWYVBZX-]) and rows represent sequence alignment index. As an example, the first row, first column represents the proportion of A's that occur in the first position of the sequence alignment. Please note, if you write the entropy matrix to file AFTER the entropy calculation has been preformed, the indel column may be dropped, but the rows will still be normalized to sum to 1. 
+Additionaly, the entropy matrix is printed to file, located in ./data/entropy_matrix.txt which can be a useful tool to visulize the sequence alignment as a frequency distribution. Columns represent amino acids (in the order: [ARNDCQEGHILKMFPSTWYVBZX-]) and rows represent sequence alignment index. As an example, the first row, first column represents the proportion of A's that occur in the first position of the sequence alignment. Please note, if you write the entropy matrix to file AFTER the entropy calculation has been preformed, the indel column may be dropped depending on the include_indel option, but the rows will still be normalized to sum to 1. 
 
-For the end results of this hw assignment, please consider the values 
+For the end results of this hw assignment, please consider the values:
     entropy score: 66.26
     sum of pairs: 1003 
-Please note, this value will be slightly different from many of my classmates because I chose to include the relevant entropy and sum of pair values when only one sequence has an indel. In my program, when indels are not to be included, entropy is calculated as if it was a two pair sequence and only non-indel pairs are summed. I know the hw instructions said to drop columns that included indel, but my stance is that dropping cols is a programatic simplification and ignores valid sequence alignment information. For more details, please inquire with author: evansna@ohsu.edu. 
+Please note, this value will be slightly different from many of my classmates because I chose to include the relevant entropy and sum of pair values when only one sequence has an indel. In my program, when indels are not to be included, score is calculated as if it was a two pair sequence and only non-indel pairs are used. I know the hw instructions said to drop columns that included indel, but my stance is that dropping cols is a programatic simplification and ignores valid sequence alignment information. For more details, please inquire with author: evansna@ohsu.edu. 
     
 ## Time and Memory Complexity discussion ##     
-This method of scoring does store sequences as frequency matrices and therefore the memory complexity increases as O(n), if n = seq_length and therefore, memory requirements are not neglible for large sequences. 
+This method of scoring does store sequences as frequency matrices and therefore the memory complexity increases as O(n), if n = seq_length and therefore, memory requirements are not neglible for large sequences. This could be solved by incrementally scoring the alignment or reading in segments of the alignment at one time and thus scoring an alignment in batches, but this would have an impact on the compute time. 
 
-This method does have some advantages in time complexity however, since matrix operations are often faster. Time complexity should follow O(n* sigma m(m+1)/2 over  i = 1 to m)) , if m = # seqs aligned 
+This method does have some advantages in compute time however, since matrix operations are often faster than looping approaches. Time complexity should follow O(n* sigma m(m+1)/2 over  i = 1 to m)) , if m = # seqs aligned 
 
 
 """
@@ -101,7 +104,7 @@ class substitution_matrix:
         Returns:
             <float> (score)
         '''
-        #print( (aa1, aa2) )
+
         if ( not score_indel and (aa1=='*' or aa2=='*')) :
             return 0
             
@@ -197,8 +200,6 @@ class sequence_alignment:
         else: 
             return 0
                 
-    
-    # this also includes cols with indels if there are non indel pairs to compare 
     def __score_sum_of_pair__(self, score_indel=True): 
         '''
         This function produces a sum of pairs over the full length of the alignment
@@ -243,7 +244,7 @@ class sequence_alignment:
         
     def __entropy__(self, pi): 
         '''
-        shannons entropy equation
+        shannon entropy equation
         
         Args:
             pi<float> probabilty value within bounds [0,1]
@@ -293,19 +294,18 @@ class sequence_alignment:
 if __name__ == '__main__' : 
     
     smat = substitution_matrix("./data/BLOSUM62.txt") 
-    #print( smat.get_score('S','A') )
     
+    # read sequences from file 
     seqs = []
     with open('./data/hw3.txt') as f: 
         for line in f.readlines(): 
             if (line.strip()):
-                test = re.sub('-', '*', line.strip())
                 seqs.append(re.sub('-', '*', line.strip()))
                 
 
         
     seq_align = sequence_alignment(smat, seqs)
-    seq_align.write_ent_matrix_to_file()
+    seq_align.write_ent_matrix_to_file() 
                 
     es_g = seq_align.score(method='entropy', include_gaps=True)
     print('entropy score with gaps included:', es_g)
