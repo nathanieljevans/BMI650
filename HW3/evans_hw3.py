@@ -323,9 +323,9 @@ if __name__ == '__main__' :
         
     with open('./data/evans_output.txt','w') as f: 
         f.write('entropy score with gaps included:' + str(es_g))
-        f.write('entropy score, gaps not included:' + str(es_ng))
-        f.write('sum of pairs gaps included:' + str(sop)) 
-        f.write('sum of pairs gaps not included:' + str(sop_ng ))
+        f.write('\nentropy score, gaps not included:' + str(es_ng))
+        f.write('\nsum of pairs gaps included:' + str(sop)) 
+        f.write('\nsum of pairs gaps not included:' + str(sop_ng ))
         
         
         

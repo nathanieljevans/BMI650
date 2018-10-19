@@ -1,1 +1,4 @@
-entropy score with gaps included:76.02907921642645entropy score, gaps not included:66.26115837516039sum of pairs gaps included:925sum of pairs gaps not included:1003
+entropy score with gaps included:76.02907921642645
+entropy score, gaps not included:66.26115837516039
+sum of pairs gaps included:925
+sum of pairs gaps not included:1003
