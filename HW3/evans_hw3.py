@@ -10,10 +10,10 @@ The following program can be run for the purpose of scoring any number and lengt
 
 Scoring can be calculated in two ways, and with the option of including or excluding gap scores, which produces four total output scores. 
 
-The entropy score is produced by using shannon's entropy equation (-sigma: pi*log2(pi) ) for each column and summing over the entire sequence length. This can be done including or excluding indel values BUT columns are not dropped when indels are present, rather, they are excluded in the entopy equation but a normalized column is still used. 
+The entropy score is produced by using shannon's entropy (-sigma: pi*log2(pi) ) for each column and summing over the entire sequence length. This can be done including or excluding indel values BUT columns are not dropped when indels are present, rather, they are excluded in the entopy equation but a normalized column is still used. 
     e.g. (excluding indels) given the column: [K - T], the entropy score would be calculated as: 
             2*(0.5 * log2(0.5))
-            This provides a more accurate entropy score by including all information where sequences overlap. 
+            This provides a more accurate score by including all information where sequences overlap. 
             
 Likewise, sequence score can also be calculated using the sum of pairs method, and this requires an input substitution matrix. This file should be located in ./data/BLOSOM62.txt. For syntax on valid input files, please see example at: https://www.ncbi.nlm.nih.gov/Class/BLAST/BLOSUM62.txt. Naming conventions should be adapted if using non-default substitution matrix. This method can also be calculated including or excluding indels, however, like before this method does not drop the column but instead treats a indel-aminoacid pair as zero scoring, thereby maximizing the amount of information retained in the calculated score. 
 
@@ -24,12 +24,12 @@ Additionaly, the entropy matrix is printed to file, located in ./data/entropy_ma
 For the end results of this hw assignment, please consider the values 
     entropy score: 66.26
     sum of pairs: 1003 
-Please note, this value will be slightly different from many of my classmates because I chose to include the relevant entropy and sum of pair values when only one sequence has an indel. In this case, entropy is calculated as if it was a two pair sequence and only non-indel pairs are summed. For more details on specifics, please inquire with author: evansna@ohsu.edu. 
+Please note, this value will be slightly different from many of my classmates because I chose to include the relevant entropy and sum of pair values when only one sequence has an indel. In my program, when indels are not to be included, entropy is calculated as if it was a two pair sequence and only non-indel pairs are summed. I know the hw instructions said to drop columns that included indel, but my stance is that dropping cols is a programatic simplification and ignores valid sequence alignment information. For more details, please inquire with author: evansna@ohsu.edu. 
     
 ## Time and Memory Complexity discussion ##     
 This method of scoring does store sequences as frequency matrices and therefore the memory complexity increases as O(n), if n = seq_length and therefore, memory requirements are not neglible for large sequences. 
 
-This method does have some advantages in time complexity however, since matrix operations are often faster. Time complexity should follow O(n*m^2) or O(n*2^m)-need to think about it a bit more-, if m = # seqs aligned 
+This method does have some advantages in time complexity however, since matrix operations are often faster. Time complexity should follow O(n* sigma m(m+1)/2 over  i = 1 to m)) , if m = # seqs aligned 
 
 
 """
@@ -38,22 +38,23 @@ import numpy as np
 
 class substitution_matrix: 
     '''
-    description
+    This class creates an object from file which functions to provide a scoring scheme for each given amino acid pairing. 
+        For an example on substitution matrix files acceptable syntax, see example at: https://www.ncbi.nlm.nih.gov/Class/BLAST/BLOSUM62.txt
     
-    Args:
-        input
-    Returns:
-        output
+    extends: 
+        Object
+    children:
+        None
     '''
     
     def __init__(self, file): 
         '''
-        description
+        Creates the substitution matrix, stored in a numpy array. Given file represents the bath to your desired sub matrix on disk. 
         
         Args:
-            input
+            file <str> relative path to the substitution matrix 
         Returns:
-            output
+            None 
         '''
         with open(file) as f: 
             
@@ -79,24 +80,26 @@ class substitution_matrix:
             
     def __get_aa_index__(self, aa):
         '''
-        description
+        private function, returns the index of the row/col which represents that amino acid in the substirtuion matrix 
         
         Args:
-            input
+            aa <str> single character representing an amino acid
         Returns:
-            output
+            return <int> (index), -1 if char not found 
         '''
         return self.header.find(aa)
         
     
     def get_score(self, aa1, aa2, score_indel=True): 
         '''
-        description
+        This function returns a score for the two given amino acids. If score_indel=True, the sub matrix is used to score gaps, if not, 0 is returned if either amino acid is an indel. 
         
         Args:
-            input
+            aa1 <str> first amino acid
+            aa2 <str> second amino acid
+            score_indel <bool> option to score indels with sub matrix 
         Returns:
-            output
+            <float> (score)
         '''
         #print( (aa1, aa2) )
         if ( not score_indel and (aa1=='*' or aa2=='*')) :
@@ -111,28 +114,30 @@ class substitution_matrix:
 
 class sequence_alignment: 
     '''
-    description
+    This class creates an object representing an alignment of multiple amino acid sequences. 
     
-    Args:
-        input
-    Returns:
-        output
+    extends:
+        Object
+    children:
+        None
+        
     '''
     
     def __init__(self, sub_mat, seqs): 
         '''
-        description
+        initializes the object using given substitution matrix and sequences
         
         Args:
-            input
+            sub_mat <substitution_matrix> represents the scoring matrix to use in scoring this sequence alignment. 
+            seqs <list[<str>]> list of sequences to be used to generate the alignment object. Must be of the same length and only include valid amino acid characters: [ARNDCQEGHILKMFPSTWYVBZX-]
         Returns:
-            output
+            None 
         '''
         
         assert max([len(x) for x in seqs]) == min([len(x) for x in seqs]), "sequence lengths must be the same length to key starting index, add indels to offset lengths to proper alignment" 
               
         self.score_matrix = sub_mat
-        self.seqs = np.array( [[aa for aa in seq] for seq in seqs] )
+        self.seqs = np.array( [[aa for aa in seq] for seq in seqs] ) # convert to list of chars -> npumpy array for matrix ops 
         self.len = len(seqs[0])
         self.num_seqs = len(seqs)
         
@@ -153,12 +158,15 @@ class sequence_alignment:
         
     def score(self, method='entropy', include_gaps=True): 
         '''
-        description
+        This function generates a score for the alignment. Can include or exclude indel presence in alignment. Scoring methods: 
+                'entropy' 
+                'sum_of_pairs'
         
         Args:
-            input
-        Returns:
-            output
+            method <str> method to score alignment 
+            include_gaps <bool> option to include indel presence in score 
+        Returns:0
+            return <float> (score)
         '''
         assert method == 'entropy' or method == 'sum_of_pairs', "unrecognized scoring method" 
         
@@ -171,13 +179,15 @@ class sequence_alignment:
         
     def __pair_sum__(self, seqs_col, score_indel): 
         '''
-        description
+        This is a recursive function to calculate the sum of pairs given a column of sequences representing one index position of the alignment. Scalable to any length of sequences. 
         
         Args:
-            input
+            seqs_col <list[<str>]> This is a list of single characters representing amino acids. 
+            score_indel <bool> option to include indel score in sum 
         Returns:
             output
         '''
+        
         score = 0
         if len(seqs_col) > 1 :
             aa1 = seqs_col[0]
@@ -189,14 +199,14 @@ class sequence_alignment:
                 
     
     # this also includes cols with indels if there are non indel pairs to compare 
-    def __score_sum_of_pair__(self, score_indel): 
+    def __score_sum_of_pair__(self, score_indel=True): 
         '''
-        description
+        This function produces a sum of pairs over the full length of the alignment
         
         Args:
-            input
+            score_indel<bool> option to include the indel score 
         Returns:
-            output
+            <float> (score)
         '''
         
         score = 0
@@ -206,25 +216,24 @@ class sequence_alignment:
             
         return score
     
-    
-                # make sure to talk about including the indel with one gap in scoring (even with include_indel == false). Entropy created by indel is NOT included, but entropy created from the two other mismatches aas ARE included. 
+     
     def __score_entropy_matrix__(self, include_indels=True): 
         '''
-        description
+        This function produces an entropy score from the given alignment. Note, even when include_indels is false, the column is not dropped, rather entropy from mismatches that are not indels in that column will still contribute to total entropy score.
         
         Args:
-            input
+            include_indels<bool> option to score indels, see note above. 
         Returns:
-            output
+            None
         '''
         
+        # vector operations are supposed to be faster 
         ent_vec = np.vectorize(self.__entropy__)
         
         if(not include_indels): 
-            # remove indel col (last )
+            # remove indel freq col (last)
             self.__ent_mat__ = np.delete(self.__ent_mat__, -1, 1)
-            # normalize each row 
-            #x = np.array([LA.norm(v,ord=1) for v in X]
+            # normalize each row so that rows still sum to 1 - for valid entropy calcs
             norm = np.transpose( np.tile((np.linalg.norm(self.__ent_mat__, axis=1, ord=1)) , (23,1) ) )
             
             self.__ent_mat__ = self.__ent_mat__ / norm # normalize rows of the indel-less entropy matrix
@@ -234,12 +243,12 @@ class sequence_alignment:
         
     def __entropy__(self, pi): 
         '''
-        description
+        shannons entropy equation
         
         Args:
-            input
+            pi<float> probabilty value within bounds [0,1]
         Returns:
-            output
+            return entropy value 
         '''
         if (pi > 0 and pi < 1):
             return -pi*np.log2(pi)
@@ -249,7 +258,7 @@ class sequence_alignment:
         
     def __generate_entropy_matrix__(self):
         '''
-        numpy matrix representing entropy matrix such that row correlates to header amino acid order 
+        Creates a frequency matrix of amino acid occurences. Stored in numpy array such that row correlates to header amino acid order 
         i  0   1   ...   n   
         A .2   0
         R .4   1
@@ -260,9 +269,9 @@ class sequence_alignment:
         *  0   0
     
         Args:
-            input
+            None
         Returns:
-            output
+            None
         '''
 
         self.__ent_mat__ = np.zeros([self.len, len(self.score_matrix.header)])
@@ -274,12 +283,12 @@ class sequence_alignment:
                 
                      
 '''
-    description
+    main program, to be called when script is executed. 
+    Creates substitution matrix from BLOSUM62.txt 
+    Reads in sequences from hw3.txt 
+    creates sequence alignment from sequences 
+    writes output to file ./data/evans_output.txt 
     
-    Args:
-        input
-    Returns:
-        output
     '''
 if __name__ == '__main__' : 
     
@@ -309,6 +318,8 @@ if __name__ == '__main__' :
     
     sop_ng = seq_align.score(method='sum_of_pairs', include_gaps=False) 
     print('sum of pairs gaps not included:',sop_ng )
+    
+    
         
     with open('./data/evans_output.txt','w') as f: 
         f.write('entropy score with gaps included:' + str(es_g))
