@@ -110,7 +110,7 @@ def search(BW, SFX, match):
                         break
                     else: 
                         pass # keep searching 
-                    matched_i += 1 
+                    matched_i += 1 #increment search character index
                 else: 
                     break # not the string!  
         
