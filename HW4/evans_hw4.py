@@ -23,7 +23,7 @@ Future enhancements:
 
 """
 # input sequence and substring search values 
-DNA = 'ACTGCTCGGCT$'
+DNA = 'ACACTGGTC$' #'ACTGCTCGGCT$'
 SEARCH = 'GCT'
 
 
