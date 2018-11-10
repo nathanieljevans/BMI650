@@ -112,20 +112,7 @@ def is_circular_rotation(s1,s2):
 #-------------------------------------------------------------------------------
 #Runs in O(n) where n is the length of S1/S2 
 #-------------------------------------------------------------------------------
-   #### PROBLEM 7 ####
-'''
-def rec_search(node, tree): 
-	count = 0 
-	If (node.has_no_children()): 
-		return 1 
-	
-	For child in node.get_children(): 
-		count += rec_search (child, tree) 
-	
-	return count 
--------------------------------------------------------------------------------
-num_distinct_substrings = rec_search(root, tree) 
-'''	
+
 
 #-------------------------------------------------------------------------------
     #### PROBLEM 7 ####
@@ -158,13 +145,11 @@ def build_suffix_trie(S):
     return G, labels
 
 # TODO -------------------------------------------
-def convert_trie_to_tree(G): 
-    
+def convert_trie_to_tree(G):  
     G2 = nx.DiGraph() 
     id_ = object()
     id_.val  = 0
-    cur_node = 0
-    
+    cur_node = 0 
     # traverse to end, fall back to branch pt and make node with all
         
     # There is a clever way to rebuild this recursively but it's eluding me right now
@@ -181,12 +166,10 @@ def rebuild(G, node, _id, last_node, s):
             s = rec_rebuild(G, node, _id)
 # ------unfinished ---------------------------------            
     
-
 def has_edge_char(G, node, c): 
     for node in G.neighbors(node): 
         if (G.nodes[node]['label'] == c) : 
-            return node 
-            
+            return node      
     return None 
 
 def rec_search(node, tree): 
@@ -199,9 +182,6 @@ def rec_search(node, tree):
         count += rec_search (child, tree) 
 	
     return count
-
-
-
 
 #-------------------------------------------------------
 
