@@ -11,12 +11,9 @@ Created on Tue Nov  6 17:08:23 2018
 import numpy as np 
 import re
 import networkx as nx 
-from matplotlib import pyplot as plt
+from networkx.drawing.nx_agraph import write_dot, graphviz_layout
 
-S1 = 'GWWPDT' 
-S2 = 'WRRKHY'
-
-    
+#----------------------------------------------------------   
  #### PROBLEM 1 ####   
 #----------------------------------------------------------
 
@@ -79,7 +76,7 @@ def check_contains_unique_string(rows):
         is_unique = True
 
         for j, s2 in enumerate(rows[i+1:]): 
-            if ( s1 == s2 or s1 in not_unique or ('$' in s1)): 
+            if (s1 == s2 or s1 in not_unique or ('$' in s1)): 
                 is_unique = False
                 not_unique.add(s1)
                 break
@@ -88,7 +85,6 @@ def check_contains_unique_string(rows):
             return True
     return False 
 				
-
 def search_for_shortest_unique_substring_length(S) : 
     FC, LC = generate_BW_transform(S) 
     row_generators = [build_row(i, FC, LC) for i in range(len(S))] # generators for each row
@@ -132,6 +128,78 @@ num_distinct_substrings = rec_search(root, tree)
 '''	
 
 #-------------------------------------------------------------------------------
+    #### PROBLEM 7 ####
+    
+def build_suffix_trie(S): 
+    S += '$' 
+    G = nx.DiGraph() 
+    G.add_node(0, label='root')
+    
+    suffix = '' 
+    node_id = 1
+    labels = {0:'root'}
+    for i in range(1, len(S)+1): 
+        cur_node = 0
+        suffix = S[(len(S) - i):]
+        print(suffix)
+        
+        for c2 in suffix: 
+            nxt_edge = has_edge_char(G, cur_node, c2)
+            if (nxt_edge): 
+                cur_node = nxt_edge
+                
+            else: 
+                G.add_node(node_id, label = c2)
+                G.add_edge(cur_node, node_id)
+                labels[node_id] = c2 
+                cur_node = node_id
+                node_id += 1 
+                
+    return G, labels
+
+# TODO -------------------------------------------
+def convert_trie_to_tree(G): 
+    
+    G2 = nx.DiGraph() 
+    id_ = object()
+    id_.val  = 0
+    cur_node = 0
+    
+    # traverse to end, fall back to branch pt and make node with all
+        
+    # There is a clever way to rebuild this recursively but it's eluding me right now
+def rebuild(G, node, _id, last_node, s): 
+    ney = [x for x in G.neighbors(node)]
+    if (len(ney) == 0): 
+        return G.nodes[node]['label']
+    elif (len(ney) == 1): 
+        return G.nodes[node]['label'] + rec_rebuild(G, ney[0], _id)
+    else: 
+    
+        for node in ney: 
+            _id.val+=1
+            s = rec_rebuild(G, node, _id)
+# ------unfinished ---------------------------------            
+    
+
+def has_edge_char(G, node, c): 
+    for node in G.neighbors(node): 
+        if (G.nodes[node]['label'] == c) : 
+            return node 
+            
+    return None 
+
+def rec_search(node, tree): 
+    if (node != 0): # don't include root
+        count = len([x for x in tree.nodes[node]['label'] if x != '$']) # don't include terminal characters in count, either in it's own node, or with others 
+    else: 
+        count = 0
+	
+    for child in G.neighbors(node): 
+        count += rec_search (child, tree) 
+	
+    return count
+
 
 
 
@@ -147,29 +215,16 @@ if __name__ == '__main__' :
     
     print('circ rot?', is_circular_rotation(s1,s2))
     
-    G = nx.Graph() 
-    G.add_node(0)
-    G.add_node(1) 
-    G.add_edge(0,1, label='NA')
-    G.add_node(2)
-    G.add_edge(1,2, label='$')
-    G.add_node(3)
-    G.add_edge(1,3, label='$')
-    #nx.draw(G, with_labels=True, edge)
-
+    G, labels = build_suffix_trie('AATATT')
     
-    nx.draw_networkx(G)
-# Draw the node labels
-    nx.draw_networkx_labels(G)
-# Draw the edges
-    nx.draw_networkx_edges(G)
-# Draw the edge labels
-    nx.draw_networkx_edge_labels(G, edge_labels=nx.get_edge_attributes(G, 'label'))
-    # Remove the axis
-    plt.axis('off')
-    # Show the plot
-    plt.show()
-        
+    num_distinct_substrings = rec_search(0, G) 
+    print('num distinct substrings in suffix:', num_distinct_substrings)
+
+    #pos= graphviz_layout(G, prog='dot')
+    nx.draw(G, labels = labels, with_label=True)
+'''
+
+'''     
 #---------------------------------------------------------
         
         
