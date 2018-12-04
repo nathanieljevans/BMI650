@@ -70,6 +70,7 @@ Questions for Christina:
     - using entrez, my gene converage is almost 20% of chromosome 1 (B6), are my search results pulling other builds? 
     """
     
+from sklearn.externals import joblib
 import sys
 from Bio import Entrez
 import pandas as pd
@@ -99,14 +100,15 @@ class vcf:
         _lines = raw.count('\n')
         for i,variant in enumerate(raw.strip().split('\n')):
             if (i%100000 == 0): 
-                print('loading vcf... progress: %.2f' % (i / _lines))
+                progress(i,_lines,'loading vcf')
+                #print('loading vcf... progress: %.2f' % (i / _lines))
             attr = variant.split('\t')
             __chr,__start,__geneID,__seq1,__seq2 = attr
             
             self.full.append({'chr':__chr, 'start':__start, 's1':__seq1, 's2':__seq2})
             self.variants[int(__start)] = 1 
             
-        print('num of snps: %d' %np.sum(self.variants))
+        print('\nnum of snps in chr1: %d' %np.sum(self.variants))
             
     def get_kmer_snp_distribution(self, window, re_calculate = False): 
         self.last_window = window
@@ -211,7 +213,7 @@ class vcf:
         self.exonic_intervals = []
         Entrez.email = "evansna@ohsu.edu"     # Always tell NCBI who you are
         
-        search_handle = Entrez.esearch(db='Gene',term= 'GRCm38.p4[All Fields] AND "Mus musculus"[porgn] AND alive[prop] AND 1[Chr]', retmax=3000)
+        search_handle = Entrez.esearch(db='Gene',term= '((GRCm38.p4[Assembly Name]) AND 1[Chromosome]) AND Mus Musculus[Organism] AND srcdb_refseq_known[PROP]', retmax=3000)
         
         record = Entrez.read(search_handle)
                 
@@ -220,13 +222,13 @@ class vcf:
                 #print('ids', ids)
            
         results = Entrez.efetch(db="Gene", id=','.join(ids), rettype="fasta", retmode="xml")
-        all_data = Entrez.read(results)
+        all_data = Entrez.read(results,validate=False)
         _l = len(ids)
         entrez_fails = 0
         for i,data in enumerate(all_data):
             
             try:
-                
+                progress(i, _l, 'extracting exonic intervals [fail: %s]' %entrez_fails)
                 _from = data['Entrezgene_comments'][-2]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_seqs'][0]['Seq-loc_int']['Seq-interval']['Seq-interval_from']
                 
                 _to = data['Entrezgene_comments'][-2]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_seqs'][0]['Seq-loc_int']['Seq-interval']['Seq-interval_to']
@@ -234,17 +236,16 @@ class vcf:
                 strand = data['Entrezgene_comments'][-2]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_comment'][-1]['Gene-commentary_seqs'][0]['Seq-loc_int']['Seq-interval']['Seq-interval_strand']['Na-strand'].attributes['value'] == 'plus' 
                 
                 gene_int = (_from, _to, strand)
-                print(str(gene_int) + '...prog...%f' %(i/_l))
+                #print(str(gene_int) + '...prog...%f' %(i/_l))
                 self.exonic_intervals.append(gene_int)
                 
             except: 
                 entrez_fails += 1
-                print('entrez parsing failure')
 
         with open('./data/ch1_exonic_intervals.pkl', 'wb') as f: 
             pickle.dump(self.exonic_intervals, f)
                 
-        print('failures: %d' %entrez_fails)
+        print('\nfailures: %d' %entrez_fails)
         print('genes parsed: %d' %(_l-entrez_fails))
     
     def create_chr1_exon_mask(self): 
@@ -276,7 +277,7 @@ class vcf:
         exonic = self.exon_mask[:,0] + self.exon_mask[:,1]
         for i in range(vcf.B6_chr1_length-window): 
             if (i % int(vcf.B6_chr1_length/1000) == 0): 
-                progress(i, vcf.B6_chr1_length, status='calculating exon snp dist...')
+                progress(i, vcf.B6_chr1_length, status='calculating exon snp dist')
                 
             c =np.sum(self.variants[i:i+window])
             ex_cnt = np.sum(exonic[i:i+window])
@@ -287,17 +288,31 @@ class vcf:
             else:
                 self.exonic_snps_dist.append(c)
         
-        # THIS ISN"T WORKING, whyyy lisahhhh
-        print('saving exon,intron,boundary data to file...')
-        with open('./data/exonic_snps_dist_array.pkl', 'wb') as f: 
-            pickle.dump(self.exonic_snps_dist, f)
+        self.intronic_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
+        self.boundary_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
+        self.exonic_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
         
-        with open('./data/intronic_snps_dist_array.pkl', 'wb') as f: 
-            pickle.dump(self.intronic_snps_dist, f)
+        # THIS ISN"T WORKING, whyyy lisahhhh
+        
+        try:
+            print('\nsaving exon,intron,boundary data to file...')
+            with open('./data/exonic_snps_dist_array.pkl', 'wb') as f: 
+                pickle.dump(self.exonic_snps_dist, f)
             
-        with open('./data/boundary_snps_dist_array.pkl', 'wb') as f: 
-            pickle.dump(self.boundary_snps_dist, f)
-            
+            with open('./data/intronic_snps_dist_array.pkl', 'wb') as f: 
+                pickle.dump(self.intronic_snps_dist, f)
+                
+            with open('./data/boundary_snps_dist_array.pkl', 'wb') as f: 
+                pickle.dump(self.boundary_snps_dist, f)
+        
+        except:
+            try: 
+                joblib.dump(self.exonic_snps_dist, './data/exonic_snps_dist_array.pkl')
+                joblib.dump(self.intronic_snps_dist, './data/intronic_snps_dist_array.pkl')
+                joblib.dump(self.boundary_snps_dist, './data/boundary_snps_dist_array.pkl')
+            except:
+                print(':(')
+        
         print('save complete.')    
         
     def load_exon_snps_dist(self): 
@@ -317,7 +332,7 @@ class vcf:
 
 # From: https://gist.github.com/vladignatyev/06860ec2040cb497f0f3#file-progress-py 
 def progress(count, total, status=''):
-    bar_len = 60
+    bar_len = 20
     filled_len = int(round(bar_len * count / float(total)))
 
     percents = round(100.0 * count / float(total), 1)
@@ -337,8 +352,8 @@ if __name__ == '__main__' :
     variants = vcf(raw, init=True)
     
     # This can be recurated or loaded from a pickled file 
-    variants.load_exonic_intervals()
-    #variants.get_ch1_exonic_regions() # 1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes
+    #variants.load_exonic_intervals()
+    variants.get_ch1_exonic_regions() # 1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes
     
     variants.create_chr1_exon_mask()
     
