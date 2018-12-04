@@ -1,0 +1,20 @@
+---
+title: "Algorithms Final Project"
+author: "Nathaniel Evans"
+date: "November 30, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+$$ P_{False Positive} = \frac{permutations \space sub-seq \space with \space T \space mismatches}{permutations \space of \space window \space K} \space \space \space \space  =  \frac{4^T + k}{4^k}$$ 
+
+
+$$\alpha = 0.05 \space -> \frac{0.05}{l - 101} = \frac{4^T + k}{4^k} \space -> T = 84.05 \\ l = chr1 \space length$$  
+
+$$ FP = (l - 100) \times P_{FP} $$
+
+
+$$ TN = (l - 100) \times (1 - P_{FP}) $$
