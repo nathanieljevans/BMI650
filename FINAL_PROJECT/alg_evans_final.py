@@ -123,7 +123,8 @@ class vcf:
             
             for i in range(0, int(len(self.snps_count))):
                 if (i % 10**6 == 0): 
-                    print('calculating snps dist... progress: %.3f' % (i/_l))
+                    progress(i, _l, 'calculating full snps')
+
                     
                 self.snps_count[i] = np.sum(self.variants[i:i+window])
                 
@@ -134,7 +135,7 @@ class vcf:
         self.snps_std = np.std(self.snps_count)
         self.snps_max = np.max(self.snps_count)
         
-        print('average: %f' % (self.snps_mean))
+        print('\naverage: %f' % (self.snps_mean))
         print('standard dev: %f' %(self.snps_std))
         print('max snps in %d window: %d' %(window, self.snps_max))
         
@@ -158,39 +159,61 @@ class vcf:
         
         fig, ax = plt.subplots(figsize=(11,9))
         
-        bw_smooth = 1
-        sns.distplot(self.snps_count, kde=True, kde_kws={'bw':bw_smooth}, bins=25, norm_hist=True,color='red', hist_kws={'alpha':0.3}, ax=ax)
+        bw_smooth = .5
+        sns.distplot(self.snps_count, kde=True, hist=False, kde_kws={'bw':bw_smooth}, bins=25, norm_hist=True,color='red', hist_kws={'alpha':0.3}, ax=ax)
         
-        sns.distplot(self.exonic_snps_dist, kde=True, kde_kws={'bw':bw_smooth}, bins=25, norm_hist=True,color='blue', hist_kws={'alpha':0.3}, ax=ax)
+        sns.distplot(self.exonic_snps_dist, kde=True, hist=True, kde_kws={'bw':bw_smooth}, bins=20, norm_hist=True,color='blue', hist_kws={'alpha':0.3}, ax=ax)
         
+        sns.distplot(self.intronic_snps_dist, kde=True, hist=False, kde_kws={'bw':bw_smooth}, bins=25, norm_hist=True,color='green', hist_kws={'alpha':0.3}, ax=ax)
+
+        sns.distplot(self.boundary_snps_dist, kde=True, hist=False, kde_kws={'bw':bw_smooth}, bins=25, norm_hist=True,color='purple', hist_kws={'alpha':0.3}, ax=ax)
+
         p1 = mpatches.Patch(color='red', label='ALL SNPS')
         p2 = mpatches.Patch(color='blue', label='EXON SNPS')
+        p3 = mpatches.Patch(color='green', label='INTRON SNPS')
+        p4 = mpatches.Patch(color='purple', label='BOUNDARY SNPS')
 
-        plt.xlim(0,30)
-        ax.legend(handles=[p1,p2])
+        plt.xlim(0,10)
+        ax.legend(handles=[p1,p2,p3,p4])
         
-        #plt.plot([mean, mean], [0, 3], linewidth=2, color='red')
-        plt.title('snps probability distribution')
+        plt.xlabel('# SNPs in 100-mer')
+        plt.ylabel('probability')
+        plt.title('cumulative distribution of variation in 100-mers of B6 chromosome 1')
+        fig.savefig('./outputs/SNPs_distribution.png')
+        plt.show()
         
     def calculate_accuracy(self, T, dist, l): 
         
         ## Use l to choose between full chromosome or exonic length 
         ## use dist to specify exonic dist or full dist
         l = float(l)
-        FN = 0
         FN = np.sum(dist > T)
         TP = len(dist) - FN
+        #print ('TP %.3f' %TP)
         
         ## these are theoretical FP and TN calculations
         k = float(self.last_window)
+        
+        # Rough estimate model
+        #
+        #P = np.power(4.0, T) / np.power(4.0, k)
         TN = l-100 - ((l-100)*(l+100)*(np.power(4.0,T)+k))/(np.power(4.0,k))
         FP = ((l-100)*(np.power(4.0,T) + k)) / (np.power(4.0,k))
         
-        acc = (TP-FN) / (TP + FN)
+        # Factorial model
+        # np.math.factorial(100) - np.math.factorial(100-T) -> 
+        #partial_factorial = np.arange(k, k-T-1, -1)
+        #P = (np.power(4.0,T) * (np.product(partial_factorial))) / np.power(4.0,k)
+        #print('P %.3f' %P)
         
-        print('T=%.3f --> acc=%.3f (TP: %f, TN: %f, FP: %f, FN: %f)' %(T,acc,TP,TN, FP, FN))
+        #TN = (1.0-P)*(l-k)
+        #FP = (P) * (l-k)
         
-        return acc, TP, TN, FP, FN
+        
+        
+        #print('T=%.3f --> acc=%.3f (TP: %f, TN: %f, FP: %f, FN: %f)' %(T,acc,TP,TN, FP, FN))
+        
+        return TP, TN, FP, FN
 
     def load_exonic_intervals(self): 
         try: 
@@ -266,7 +289,6 @@ class vcf:
         count = np.sum(exon_snps)
         mean = count / np.sum(self.exon_mask)
         
-        
         print('exon snps: %d, mean snps / 100 : %.4f' %(count, mean*100))
     
     def get_exon_snp_dist(self, window): 
@@ -289,22 +311,25 @@ class vcf:
                 self.exonic_snps_dist.append(c)
         
         self.intronic_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
-        self.boundary_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
-        self.exonic_snps_dist = np.array(self.intronic_snps_dist, dtype='byte')
+        self.boundary_snps_dist = np.array(self.boundary_snps_dist, dtype='byte')
+        self.exonic_snps_dist = np.array(self.exonic_snps_dist, dtype='byte')
         
         # THIS ISN"T WORKING, whyyy lisahhhh
         
         try:
+            print('trying to save')
             print('\nsaving exon,intron,boundary data to file...')
             with open('./data/exonic_snps_dist_array.pkl', 'wb') as f: 
                 pickle.dump(self.exonic_snps_dist, f)
+            print('first!')
             
             with open('./data/intronic_snps_dist_array.pkl', 'wb') as f: 
                 pickle.dump(self.intronic_snps_dist, f)
-                
+             
+            print('second!')
             with open('./data/boundary_snps_dist_array.pkl', 'wb') as f: 
                 pickle.dump(self.boundary_snps_dist, f)
-        
+            print('sweet relief!')
         except:
             try: 
                 joblib.dump(self.exonic_snps_dist, './data/exonic_snps_dist_array.pkl')
@@ -318,10 +343,14 @@ class vcf:
     def load_exon_snps_dist(self): 
         
         with open('./data/exonic_snps_dist_array.pkl', 'rb') as f: 
-           data = pickle.load(f)
-           self.exonic_snps_dist = data['exon']
-           self.intronic_snps_dist = data['intron']
-           self.boundary_snps_dist = data['boundary']
+           self.exonic_snps_dist = pickle.load(f)
+           
+        with open('./data/intronic_snps_dist_array.pkl', 'rb') as f: 
+           self.intronic_snps_dist = pickle.load(f)
+           
+        with open('./data/boundary_snps_dist_array.pkl', 'rb') as f: 
+           self.boundary_snps_dist = pickle.load(f)
+           
     
     def print_stats(self, dist): 
         
@@ -352,17 +381,17 @@ if __name__ == '__main__' :
     variants = vcf(raw, init=True)
     
     # This can be recurated or loaded from a pickled file 
-    #variants.load_exonic_intervals()
-    variants.get_ch1_exonic_regions() # 1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes
+    variants.load_exonic_intervals()
+    #variants.get_ch1_exonic_regions() # 1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes
     
     variants.create_chr1_exon_mask()
     
     variants.count_exon_snps()
     
     # to recalculate snps/window distribution
-    variants.get_exon_snp_dist(window=100)
+    #variants.get_exon_snp_dist(window=100)
     # to load from disk the variants 
-    #variants.load_exon_snps_dist()
+    variants.load_exon_snps_dist()
     
     # gets the full snps distribution, no distinction between exon/intron
     variants.get_kmer_snp_distribution(100, re_calculate=False)
@@ -376,12 +405,9 @@ if __name__ == '__main__' :
     print('\n\n full dist')
     variants.print_stats(variants.snps_count)
 
-
-    '''    
     variants.plot_snp_distribution()
     
-    X = np.arange(1,87,1)
-    acc = np.zeros(len(X))
+    X = np.arange(1,90,1)
     TP = np.zeros(len(X))
     TN = np.zeros(len(X))
     FP = np.zeros(len(X))
@@ -389,13 +415,15 @@ if __name__ == '__main__' :
     
     exonic_length = np.sum(variants.exon_mask)
     for i,x in enumerate(X): 
-        acc[i], TP[i], TN[i], FP[i], FN[i] = variants.calculate_accuracy(T=x, dist=variants.exonic_snps_dist, l=exonic_length)
-        
-    df = pd.DataFrame({'X':X, 'acc':acc, 'TP':TP, 'TN':TN, 'FP':FP, 'FN':FN, 'sensitivity':TP/(TP+FN), 'specificity':TN/(TN+FP), 'precision':TP/(TP+FP)})
+        progress(i, len(X), 'calculating sensitivity and specificity')
+        TP[i], TN[i], FP[i], FN[i] = variants.calculate_accuracy(T=x, dist=variants.exonic_snps_dist, l=exonic_length)
+
+    df = pd.DataFrame({'X':X,'TP':TP, 'TN':TN, 'FP':FP, 'FN':FN, 'sensitivity':TP/(TP+FN), 'specificity':TN/(TN+FP), 'precision':TP/(TP+FP)})
     
     df.to_csv('./outputs/threshold_comparison-exon.csv')
     
     fig, ax = plt.subplots(figsize=(15,9))
+    plt.ylim(-10, 0.6e8)
     plt.gcf()
     ax.plot('X','TP', data = df, color='green')
     ax.plot('X', 'TN', data = df, color='blue')
@@ -407,24 +435,29 @@ if __name__ == '__main__' :
     p4 = mpatches.Patch(color='red', label='False Negative')
     ax.legend(handles=[p1,p2,p3,p4])
     plt.title('Threshold vs outcomes for Exonic Regions')
+    plt.xlabel('# mismatches (T)')
+    plt.ylabel('count')
+    plt.savefig('./outputs/TP_TN_plot.png')
     plt.show()
     
     fig2, ax2 = plt.subplots(figsize=(15,9))
-    plt.xlim(0,15)
+    plt.xlim(0,90)
+    plt.ylim(-.25,1.25)
     plt.gcf()
-    ax2.plot('X', 'acc', data = df, color='red')
     ax2.plot('X', 'sensitivity', data = df, color='blue')
     ax2.plot('X', 'specificity', data = df, color='green')
-    ax2.plot('X', 'precision', data = df, color='purple')
-    p1 = mpatches.Patch(color='red', label='accuracy')
+    #ax2.plot('X', 'precision', data = df, color='purple')
     p2 = mpatches.Patch(color='blue', label='sensitivity')
     p3 = mpatches.Patch(color='green', label='specificity')
-    p4 = mpatches.Patch(color='purple', label='precision')
-    ax2.legend(handles=[p1,p2,p3,p4])
-    plt.title('Threshold vs outcome metric for Exonic Regions')
+    #p4 = mpatches.Patch(color='purple', label='precision')
+    ax2.legend(handles=[p3,p4])
+    plt.xlabel('Threshold (T)')
+    plt.ylabel('Probability')
+    plt.title('Threshold vs Outcome metric for Exonic Regions')
+    plt.savefig('./outputs/sens_spec_T.png')
     plt.show()
     
-    '''  
+     
 
     toc = time.clock()
     print('finished. Time to execute: %.3f seconds' %(toc-tic))
