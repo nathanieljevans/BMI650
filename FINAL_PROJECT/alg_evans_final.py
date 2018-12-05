@@ -2,72 +2,26 @@
 """
 Created on Tue Nov 27 23:40:59 2018
 
-@author: natha
-
+@author: nathaniel evans
+@class: BMI650 
+@HW: FINAL PROJECT
 
 Instructions
-Parameter selection is a critical feature in algorithm optimization and protocol standardization / best practices. We will be examining this in the context of alignment for a sample being aligned to a related reference genome. B6 is the reference genome for Mus Musculus. However, a number of other strains are utilized for research. We will be examining sequence data from one of the wild strains, PWK. Our concern is the number of mismatches to select for alignment given the genomic differences between B6 and PWK.  
-
-With regard to the deliverables, you must provide a naive/brute-force analysis of the data 
-***
-to set a threshold to determine the number of mismatches for PWK based on a 100 base pair read. 
-***
-You will provide your code and a brief 1-2 page report summarizing your approach, assumptions and limitations.  After you have determined your mismatch threshold, please choose an appropriate aligner (but it must require the user to set the number/threshold of mismatches) to align the provided data. Your written report should also include a discussion of the final alignment percentage.  This is worth 80% of the total project. 
-
-An alternative solution is to design an approach to estimate this from the data. For this path, one strategy would be to design an approach specific to one strain (e.g., PWK). However, the more realistic scenario is to allow this to be generalizable - particularly given the use of “mosaic” crosses such as the Collaborative Cross which utilizes 8 founder strains.  This should be compared to the brute-force approach above. For the remaining 20%, you must provide pseudo-code for either the strain-specific or generalizable strategy.  
-
-The files needed for the project can be found on
-
-state: /home/courses/BMI550/FinalProject
-
-chr1_PWK_PhJ.mgp.v5.snps.dbSNP142.vcf  - SNP annotation for PWK Chromosome 1 (Assembly 38) 
-
-GRCm38_chr1.fa - FASTA file for B6 Chromosome 1 (Assembly 38) 
-
-Mus_musculus.GRCm38.gtf - GTF file for B6 (Assembly 38) 
-
-PWK_R1.fastq  - FastQ file for PWK (RNA-seq data from Illumina Hi-Seq2500)
-
-Each student will give a 3-min presentation on December 5th summarizing their approach and issues they faced (3 slides max). Slides must be submitted by 9am on December 5th so we can load them to allow everyone time to present. 
-
-Project is due December 5th by 9am. 
-
-tldr 
-Parameter selection in the context of alignment for PWK (wild strain of mus musculus) being aligned to B6, mus musculus ref. genome. The goal is to find a threshold for the number of mismatches allowed between the genomes. 
-
-
-
-Questions for Christina: 
-    1) If we choose to follow part 2, is part 1 still necessary? 
-    2) what does a number of mismatches for pwk mean 
+This program can be run from a terminal but must be in the following file structure: 
     
-Some Aligners (https://sakai.ohsu.edu/portal/site/BMI-550-1-AS-F18/tool/621a05f7-e013-4047-adb3-b061469b8bc0/ShowPage?returnView=&studentItemId=0&backPath=&errorMessage=&clearAttr=&messageId=&source=&title=&sendingPage=79570&newTopLevel=false&postedComment=false&addBefore=&itemId=377376&path=push&topicId=&addTool=-1&recheck=&id=&forumId=)
-
-Bowtie, Bowtie2, BWA-SW, BWA-MEM
-
-        Aligners: Tophat2, STAR
-
-        HTSeq
-
-        Cufflinks and Cuffdiff
-
-        GTF Format 
+    alg_evans_final.py
+    /data/ 
+        no_header.vcf
+    /outputs/
     
-    
-    
-Naive Approach 
+Additionally, if there the script has not been run previously it is necessary to change commenting in main to run full script. 
+Future runs can be sped up significantly by loading pickled files from disk. 
 
-Use the vcf:
-    sliding window to calculated # SNPS in a 100 k-mer window (record in array)
-    plot a distribution, choose a 0.05 alpha level and calculate TP,FN->acc and then use gradient descent to best acc. Weight TP,FN for preference. 
-    __acc__ = (TP - FN) / (TP + FN)
-    
-    # Good Mouse entrez info
-    https://www.ncbi.nlm.nih.gov/genome?term=mus%20musculus
+This algorithm focuses on using the variation of the exonic regions of chromosome 1 of the ref genome B6 (mus musculus) to predict 
+an acceptable number of mismatches (T) to align RNA-seq data from PWK strain to B6 genome. 
 
-
-Questions for Christina: 
-    - using entrez, my gene converage is almost 20% of chromosome 1 (B6), are my search results pulling other builds? 
+Keep in mind this is RNA-seq data, so it is processed mRNA chunks. Only exon regions will be included. Fortunately, aligners 
+such as STAR can include splicing into the alignment so T mismatches only refers to the mismatches within exonic regions. 
     """
     
 from sklearn.externals import joblib
@@ -83,11 +37,15 @@ import seaborn as sns
 import matplotlib.patches as mpatches
 
 class vcf: 
-    B6_chr1_length = 195471971
+    B6_chr1_length = 195471971 # length of chr1 B6 nucleotide sequence 
     
     def __init__(self, raw, init=True): 
         ''' 
+        initialize the vcf object (name is a little deprecated now) 
         
+        input 
+            raw <str> .vcf file to parse 
+            init <boolean> option to parse, useful to speed up testing if the vcf parsing isn't necessary 
         '''
         self.variants = np.array([0]*vcf.B6_chr1_length)
         self.full = []
@@ -95,6 +53,15 @@ class vcf:
             self.parse(raw)
         
     def parse(self, raw): 
+        '''
+        parse the .vcf data representing SNPs in chromosome 1 of mus musculus B6 reference genome. 
+        
+        inputs 
+            raw <str> the vcf file to parse 
+            
+        outputs 
+            None 
+        '''
         
         #length of mouse chr 1 = 195.47e6 bases 
         _lines = raw.count('\n')
@@ -111,6 +78,17 @@ class vcf:
         print('\nnum of snps in chr1: %d' %np.sum(self.variants))
             
     def get_kmer_snp_distribution(self, window, re_calculate = False): 
+        '''
+        calculate the k-mer SNP distribution for B6 chromosome 1 using the full region. 
+        
+        inputs 
+            window <int> size of k-mer 
+            re_calculate <boolean> option to load from memory if available
+            
+        outputs 
+            None 
+        '''
+        
         self.last_window = window
         data = self.__check_prev_and_load(window)
         
@@ -135,18 +113,27 @@ class vcf:
         self.snps_std = np.std(self.snps_count)
         self.snps_max = np.max(self.snps_count)
         
-        print('\naverage: %f' % (self.snps_mean))
-        print('standard dev: %f' %(self.snps_std))
-        print('max snps in %d window: %d' %(window, self.snps_max))
+        #print('\naverage: %f' % (self.snps_mean))
+        #print('standard dev: %f' %(self.snps_std))
+        #print('max snps in %d window: %d' %(window, self.snps_max))
         
     
     def __check_prev_and_load(self, window, mypath = './data/'): 
+        '''
+        load the ALL regions SNPs distribution into memory if it's available. 
+        
+        inputs
+            window <int> length of k-mer for sliding window
+            mypath <string> where to look for the file 
+            
+        outputs 
+            SNPs distribution <np.array> 
+        '''
         
         onlypkls = [f for f in listdir(mypath) if (f[-3:] == 'pkl' and f[0:4] == 'snps')]
         
         for f in onlypkls: 
             _window = f.split('-')[1]
-            print(_window)
             if (int(_window) == window): 
                 print ('loading pre-calculated snps distribution')
                 with open('./data/%s' %f, 'rb') as f2: 
@@ -156,6 +143,15 @@ class vcf:
         return None 
             
     def plot_snp_distribution(self): 
+        '''
+        plot the cumulative distribution function of the SNPs / k-mer
+        
+        inputs 
+            None
+        
+        outputs 
+            None
+        '''
         
         fig, ax = plt.subplots(figsize=(11,9))
         
@@ -183,7 +179,18 @@ class vcf:
         plt.show()
         
     def calculate_accuracy(self, T, dist, l): 
+        '''
+        calculate the True Positives and False Negatives given T and our SNPs / k-mer distributon. 
+        Estimate the True Negatives and False Positives using a probability model. 
         
+        inputs
+            T <int> number of acceptable mis-matches / SNPs 
+            dist <np.array> each index represents a k-mer and the value is the # of SNPs in that window
+            l <int> length of the region of interest (eg chr1, exon-chr1...etc )
+            
+        outputs 
+            None 
+        '''
         ## Use l to choose between full chromosome or exonic length 
         ## use dist to specify exonic dist or full dist
         l = float(l)
@@ -195,7 +202,6 @@ class vcf:
         k = float(self.last_window)
         
         # Rough estimate model
-        #
         #P = np.power(4.0, T) / np.power(4.0, k)
         TN = l-100 - ((l-100)*(l+100)*(np.power(4.0,T)+k))/(np.power(4.0,k))
         FP = ((l-100)*(np.power(4.0,T) + k)) / (np.power(4.0,k))
@@ -209,13 +215,20 @@ class vcf:
         #TN = (1.0-P)*(l-k)
         #FP = (P) * (l-k)
         
-        
-        
         #print('T=%.3f --> acc=%.3f (TP: %f, TN: %f, FP: %f, FN: %f)' %(T,acc,TP,TN, FP, FN))
         
         return TP, TN, FP, FN
 
     def load_exonic_intervals(self): 
+        '''
+        loads the exon intervals from disk. Saves a ton of time not to re-calculate. 
+        
+        inputs
+            None
+            
+        outputs 
+            None
+        '''
         try: 
             with open('./data/ch1_exonic_intervals.pkl', 'rb') as f: 
                 self.exonic_intervals = pickle.load(f)
@@ -271,7 +284,16 @@ class vcf:
         print('\nfailures: %d' %entrez_fails)
         print('genes parsed: %d' %(_l-entrez_fails))
     
-    def create_chr1_exon_mask(self): 
+    def create_chr1_exon_mask(self):
+        '''
+        Create the exon mask representing B6 chromosome 1
+        
+        inputs
+            None
+        
+        outputs 
+            None
+        '''
         
         self.exon_mask = np.full((vcf.B6_chr1_length,2),False, dtype=bool) # row index is strand directionality: 0 -> minus, 1->plus
         
@@ -279,10 +301,19 @@ class vcf:
         for _from, _to, _strand in self.exonic_intervals: 
             self.exon_mask[int(_from):int(_to),int(_strand)] = 1 
             
-        print(np.mean(self.exon_mask)) # chr1 is almost 20% exon! That seems like too much... it's usually 2% ....
+        #print(np.mean(self.exon_mask)) # chr1 is almost 20% exon! That seems like too much... it's usually 2% .... ITS BECAUSE THE INTRONS WERN"T SPLICED OUT
         
         
     def count_exon_snps(self): 
+        '''
+        counts the SNPs in the exon regions
+        
+        inputs
+            None
+        
+        outputs
+            None
+        '''
         
         exon_snps = np.transpose(self.exon_mask[:,0] + self.exon_mask[:,1])*( self.variants) 
         print(exon_snps.shape)
@@ -292,7 +323,15 @@ class vcf:
         print('exon snps: %d, mean snps / 100 : %.4f' %(count, mean*100))
     
     def get_exon_snp_dist(self, window): 
+        '''
+        Calculate the exon SNP distribution. Loop through the SNPs mask and count SNPs per window. 
         
+        input 
+            window <int> size of k-mer to use for the sliding window
+            
+        output
+            pickled file to disk
+        '''
         self.intronic_snps_dist = []
         self.boundary_snps_dist = []
         self.exonic_snps_dist = []
@@ -317,12 +356,11 @@ class vcf:
         # THIS ISN"T WORKING, whyyy lisahhhh
         
         try:
-            print('trying to save')
             print('\nsaving exon,intron,boundary data to file...')
             with open('./data/exonic_snps_dist_array.pkl', 'wb') as f: 
                 pickle.dump(self.exonic_snps_dist, f)
             print('first!')
-            
+           
             with open('./data/intronic_snps_dist_array.pkl', 'wb') as f: 
                 pickle.dump(self.intronic_snps_dist, f)
              
@@ -337,11 +375,20 @@ class vcf:
                 joblib.dump(self.boundary_snps_dist, './data/boundary_snps_dist_array.pkl')
             except:
                 print(':(')
+                raise
         
         print('save complete.')    
         
     def load_exon_snps_dist(self): 
+        '''
+        loads exon SNPs distribution from disk (pickled file)
         
+        inputs 
+            None
+        
+        outputs 
+            None
+        '''
         with open('./data/exonic_snps_dist_array.pkl', 'rb') as f: 
            self.exonic_snps_dist = pickle.load(f)
            
@@ -353,14 +400,25 @@ class vcf:
            
     
     def print_stats(self, dist): 
+        '''
+        prints the stats of a given distribution 
         
+        input 
+            dist <numpy array> each index represents a 100-mer window and the value is a count of SNPs
+        
+        output
+            None
+        '''
         print('mean: %.3f' %np.mean(dist))
         print('std: %.3f' %np.std(dist))
         print('max: %d' %np.max(dist))
  
 
-# From: https://gist.github.com/vladignatyev/06860ec2040cb497f0f3#file-progress-py 
 def progress(count, total, status=''):
+    '''
+    progress bar for terminal excecution, taken from: https://gist.github.com/vladignatyev/06860ec2040cb497f0f3#file-progress-py 
+    '''
+    
     bar_len = 20
     filled_len = int(round(bar_len * count / float(total)))
 
@@ -382,14 +440,14 @@ if __name__ == '__main__' :
     
     # This can be recurated or loaded from a pickled file 
     variants.load_exonic_intervals()
-    #variants.get_ch1_exonic_regions() # 1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes
+    #variants.get_ch1_exonic_regions() # <-- do this if no pickled files.    1916 genes curated / 809 parse fails - should be only ~1600 , almost 20% exon coverage... 10x expected! Should add some QC for the genes... NOPE it's the gene introns that haven't been spliced out
     
     variants.create_chr1_exon_mask()
     
     variants.count_exon_snps()
     
     # to recalculate snps/window distribution
-    #variants.get_exon_snp_dist(window=100)
+    #variants.get_exon_snp_dist(window=100) # <---- do this if no pickled files 
     # to load from disk the variants 
     variants.load_exon_snps_dist()
     
@@ -420,8 +478,10 @@ if __name__ == '__main__' :
 
     df = pd.DataFrame({'X':X,'TP':TP, 'TN':TN, 'FP':FP, 'FN':FN, 'sensitivity':TP/(TP+FN), 'specificity':TN/(TN+FP), 'precision':TP/(TP+FP)})
     
+    # this is what I use to look at sensitivity 
     df.to_csv('./outputs/threshold_comparison-exon.csv')
     
+    #plotting graphics 
     fig, ax = plt.subplots(figsize=(15,9))
     plt.ylim(-10, 0.6e8)
     plt.gcf()
@@ -456,8 +516,6 @@ if __name__ == '__main__' :
     plt.title('Threshold vs Outcome metric for Exonic Regions')
     plt.savefig('./outputs/sens_spec_T.png')
     plt.show()
-    
-     
 
     toc = time.clock()
     print('finished. Time to execute: %.3f seconds' %(toc-tic))
